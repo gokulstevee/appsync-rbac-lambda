@@ -10,13 +10,13 @@ exports.handler = async (event) => {
     const { info, arguments: args, identity } = event;
 
     switch (info.fieldName) {
-      case "registerUser":
+      case "registerUser": // Registers a new User by creating a record in dynamoDB and Cognito, only admin can perform it
         return await registerUser(args, identity);
-      case "listUsers":
+      case "listUsers": // Lists all the available users from DB, only admin can perform it
         return await listUsers(identity);
-      case "updateUserRole":
+      case "updateUserRole": // Updates the user role both in DB and Cognito, only admin can perform it
         return await updateUserRole(args, identity);
-      case "me":
+      case "me": //  Fetches the current user who is authenticated successfully via cognito
         return await me(identity);
       default:
         return { error: "Unknown fieldName" };
@@ -33,6 +33,7 @@ function isAdmin(identity) {
 
 async function registerUser({ name, email, role }, identity) {
   try {
+    // check whether admin
     if (!isAdmin(identity)) {
       throw new Error("Access denied: Admin only");
     }
