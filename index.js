@@ -10,13 +10,13 @@ exports.handler = async (event) => {
     const { info, arguments: args, identity } = event;
 
     switch (info.fieldName) {
-      case "registerUser": // Registers a new User by creating a record in dynamoDB and Cognito, only admin can perform it
+      case "registerUser":
         return await registerUser(args, identity);
-      case "listUsers": // Lists all the available users from DB, only admin can perform it
-        return await listUsers(identity);
-      case "updateUserRole": // Updates the user role both in DB and Cognito, only admin can perform it
+      case "listUsers":
+        return await listUsers(identity, args.limit, args.nextToken);
+      case "updateUserRole":
         return await updateUserRole(args, identity);
-      case "me": //  Fetches the current user who is authenticated successfully via cognito
+      case "me":
         return await me(identity);
       default:
         return { error: "Unknown fieldName" };
@@ -33,7 +33,6 @@ function isAdmin(identity) {
 
 async function registerUser({ name, email, role }, identity) {
   try {
-    // check whether admin
     if (!isAdmin(identity)) {
       throw new Error("Access denied: Admin only");
     }
@@ -96,14 +95,29 @@ async function registerUser({ name, email, role }, identity) {
   }
 }
 
-async function listUsers(identity) {
+async function listUsers(identity, limit = 10, nextToken) {
   try {
     if (!isAdmin(identity)) {
       throw new Error("Only admins can access this");
     }
 
-    const result = await ddb.scan({ TableName: TABLE_NAME }).promise();
-    return result.Items;
+    const params = {
+      TableName: TABLE_NAME,
+      Limit: limit,
+    };
+
+    if (nextToken) {
+      params.ExclusiveStartKey = JSON.parse(nextToken);
+    }
+
+    const result = await ddb.scan(params).promise();
+
+    return {
+      users: result.Items,
+      nextToken: result.LastEvaluatedKey
+        ? JSON.stringify(result.LastEvaluatedKey)
+        : null,
+    };
   } catch (error) {
     console.error("listUsers error:", error);
     throw error;
